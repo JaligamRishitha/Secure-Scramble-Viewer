@@ -1,0 +1,74 @@
+version: '3.8'
+
+# Development Docker Compose with hot reload
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ssv_postgres_dev
+    environment:
+      POSTGRES_USER: ssv_user
+      POSTGRES_PASSWORD: ssv_password
+      POSTGRES_DB: ssv_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    networks:
+      - ssv_network_dev
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ssv_user -d ssv_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend API with hot reload
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile.dev
+    container_name: ssv_backend_dev
+    environment:
+      DATABASE_URL: postgresql://ssv_user:ssv_password@postgres:5432/ssv_db
+      SECRET_KEY: ${SECRET_KEY:-dev-key-change-in-production}
+      STORAGE_PATH: /app/storage
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost
+      MAX_FILE_SIZE: 104857600
+    volumes:
+      - ./backend:/app
+      - backend_storage_dev:/app/storage
+    ports:
+      - "8000:8000"
+    networks:
+      - ssv_network_dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: uvicorn app.api.main:app --host 0.0.0.0 --port 8000 --reload
+    restart: unless-stopped
+
+  # Frontend with hot reload
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: ssv_frontend_dev
+    environment:
+      VITE_API_URL: http://localhost:8000
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "2003:5173"
+    networks:
+      - ssv_network_dev
+    command: npm run dev -- --host
+    restart: unless-stopped
+
+networks:
+  ssv_network_dev:
+    driver: bridge
+
+volumes:
+  postgres_data_dev:
+  backend_storage_dev:

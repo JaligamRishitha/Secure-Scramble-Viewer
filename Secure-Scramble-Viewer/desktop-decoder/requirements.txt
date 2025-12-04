@@ -1,0 +1,10 @@
+# Required dependencies
+cryptography==41.0.7
+pyinstaller==6.3.0
+
+# Document viewing libraries (install what you need)
+Pillow>=10.0.0          # For images with zoom
+PyMuPDF>=1.23.0         # For PDF viewing
+python-docx>=1.0.0      # For Word documents
+openpyxl>=3.1.0         # For Excel spreadsheets
+python-pptx>=0.6.0      # For PowerPoint presentations

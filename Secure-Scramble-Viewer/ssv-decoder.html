@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSV Decoder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            color: #eee;
+        }
+
+        .container {
+            background: #16213e;
+            border-radius: 20px;
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            border: 2px solid #0f3460;
+        }
+
+        h1 {
+            color: #00d4ff;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #aaa;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .upload-area {
+            border: 3px dashed #00d4ff;
+            border-radius: 15px;
+            padding: 60px 20px;
+            text-align: center;
+            background: #0f3460;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: #1a4d7a;
+            border-color: #00e5ff;
+            transform: translateY(-2px);
+        }
+
+        .upload-area.dragover {
+            background: #1a5a8a;
+            border-color: #00ffff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 5rem;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            font-size: 1.3rem;
+            color: #00d4ff;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .upload-hint {
+            color: #888;
+            font-size: 0.95rem;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .selected-file {
+            background: #0f3460;
+            padding: 25px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #00d4ff;
+        }
+
+        .file-name {
+            font-weight: 600;
+            color: #00d4ff;
+            margin-bottom: 8px;
+            font-size: 1.1rem;
+        }
+
+        .file-size {
+            color: #aaa;
+            font-size: 0.95rem;
+        }
+
+        .decode-btn {
+            width: 100%;
+            padding: 18px;
+            background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0, 212, 255, 0.3);
+        }
+
+        .decode-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .decode-btn:disabled {
+            background: #333;
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .message {
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .success {
+            background: rgba(39, 174, 96, 0.2);
+            color: #2ecc71;
+            border: 2px solid #27ae60;
+        }
+
+        .error {
+            background: rgba(231, 76, 60, 0.2);
+            color: #e74c3c;
+            border: 2px solid #c0392b;
+        }
+
+        .loading {
+            text-align: center;
+            color: #00d4ff;
+            margin-top: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #0f3460;
+            border-top: 4px solid #00d4ff;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔓 SSV Decoder</h1>
+        <p class="subtitle">Upload a .ssv file to decode and download the original</p>
+
+        <div class="upload-area" id="uploadArea">
+            <div class="upload-icon">📂</div>
+            <div class="upload-text">Click or Drag & Drop .ssv File</div>
+            <div class="upload-hint">The file will be decoded using the backend server</div>
+        </div>
+
+        <input type="file" id="fileInput" class="file-input" accept=".ssv">
+
+        <div id="selectedFile" style="display: none;" class="selected-file">
+            <div class="file-name" id="fileName"></div>
+            <div class="file-size" id="fileSize"></div>
+        </div>
+
+        <button id="decodeBtn" class="decode-btn" disabled>🔓 Decode & Download Original File</button>
+
+        <div id="message"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:2003/api';
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const selectedFileDiv = document.getElementById('selectedFile');
+        const fileNameSpan = document.getElementById('fileName');
+        const fileSizeSpan = document.getElementById('fileSize');
+        const decodeBtn = document.getElementById('decodeBtn');
+        const messageDiv = document.getElementById('message');
+
+        let selectedFile = null;
+
+        // Click to upload
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        // File selected
+        fileInput.addEventListener('change', (e) => {
+            handleFile(e.target.files[0]);
+        });
+
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFile(e.dataTransfer.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            if (!file.name.endsWith('.ssv')) {
+                showMessage('error', '❌ Please select a .ssv file');
+                return;
+            }
+
+            selectedFile = file;
+            fileNameSpan.textContent = file.name;
+            fileSizeSpan.textContent = formatFileSize(file.size);
+            selectedFileDiv.style.display = 'block';
+            decodeBtn.disabled = false;
+            messageDiv.innerHTML = '';
+        }
+
+        decodeBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            decodeBtn.disabled = true;
+            messageDiv.innerHTML = '<div class="loading"><div class="spinner"></div><p>Decoding file...</p></div>';
+
+            try {
+                // Create FormData with the .ssv file
+                const formData = new FormData();
+                formData.append('file', selectedFile);
+
+                // Upload and decode
+                const response = await fetch(`${API_URL}/decode-upload`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || 'Decode failed');
+                }
+
+                // Get the original filename from Content-Disposition header
+                const contentDisposition = response.headers.get('Content-Disposition');
+                let filename = selectedFile.name.replace('.ssv', '');
+                if (contentDisposition) {
+                    const matches = /filename=([^;]+)/.exec(contentDisposition);
+                    if (matches && matches[1]) {
+                        filename = matches[1].replace(/['"]/g, '');
+                    }
+                }
+
+                // Download the decoded file
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+
+                showMessage('success', `✅ File decoded successfully!<br>Downloaded as: <strong>${filename}</strong>`);
+
+                // Reset after 3 seconds
+                setTimeout(() => {
+                    selectedFile = null;
+                    fileInput.value = '';
+                    selectedFileDiv.style.display = 'none';
+                    decodeBtn.disabled = true;
+                    messageDiv.innerHTML = '';
+                }, 3000);
+
+            } catch (error) {
+                showMessage('error', '❌ Decoding failed: ' + error.message);
+                decodeBtn.disabled = false;
+            }
+        });
+
+        function showMessage(type, text) {
+            messageDiv.innerHTML = `<div class="message ${type}">${text}</div>`;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+    </script>
+</body>
+
+</html>

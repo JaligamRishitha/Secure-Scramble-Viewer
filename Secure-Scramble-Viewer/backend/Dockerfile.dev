@@ -1,0 +1,27 @@
+# Backend Development Dockerfile with hot reload
+FROM python:3.11-slim
+
+# Set working directory
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    postgresql-client \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Create storage directory
+RUN mkdir -p /app/storage && chmod 755 /app/storage
+
+# Expose port
+EXPOSE 8000
+
+# Development mode - code is mounted as volume
+# Command specified in docker-compose.dev.yml for hot reload
