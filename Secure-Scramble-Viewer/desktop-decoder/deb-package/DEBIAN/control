@@ -1,0 +1,10 @@
+Package: ssv-viewer
+Version: 1.0.0
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: python3, python3-tk
+Maintainer: SecureScramble <support@securescramble.com>
+Description: Secure Scramble Viewer
+ A secure viewer for encrypted .ssv files.
+ Supports PDF, images, documents and more.

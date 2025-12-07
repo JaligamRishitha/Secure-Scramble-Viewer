@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Secure Scramble Viewer
+Comment=View encrypted SSV files
+Exec=/usr/local/bin/ssv-viewer %f
+Icon=ssv-viewer
+Terminal=false
+Type=Application
+Categories=Utility;Security;
+MimeType=application/x-ssv;

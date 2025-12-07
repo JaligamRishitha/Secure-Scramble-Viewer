@@ -256,11 +256,14 @@ class SSVViewerApp:
             lambda e: self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         )
         
-        self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
+        self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
         self.canvas.configure(yscrollcommand=scrollbar.set)
         
         self.canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
+        
+        # Make scrollable_frame expand to canvas width
+        self.canvas.bind("<Configure>", self._on_canvas_configure)
         
         # Mouse wheel scrolling
         self.canvas.bind_all("<MouseWheel>", self._on_mousewheel)
@@ -270,6 +273,10 @@ class SSVViewerApp:
     
     def _on_mousewheel(self, event):
         self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+    
+    def _on_canvas_configure(self, event):
+        # Make scrollable_frame fill the canvas width so content centers properly
+        self.canvas.itemconfig(self.canvas_window, width=event.width)
     
     def show_welcome(self):
         """Show welcome message"""
@@ -334,11 +341,11 @@ class SSVViewerApp:
             self.display_text(data, filename)
         elif ext == '.pdf':
             self.display_pdf(data, filename)
-        elif ext in ['.docx']:
-            self.display_word(data, filename)
-        elif ext in ['.xlsx']:
+        elif ext in ['.docx', '.odt']:
+            self.display_word(data, filename, ext)
+        elif ext in ['.xlsx', '.ods']:
             self.display_excel(data, filename)
-        elif ext in ['.pptx']:
+        elif ext in ['.pptx', '.odp']:
             self.display_powerpoint(data, filename)
         else:
             self.display_binary_info(data, filename)
@@ -438,7 +445,7 @@ class SSVViewerApp:
         photo = ImageTk.PhotoImage(img)
         label = tk.Label(self.scrollable_frame, image=photo, bg="#16213e")
         label.image = photo
-        label.pack(expand=True, pady=20)
+        label.pack(expand=True, fill=tk.BOTH, pady=20)
         
         # Update page label
         total_pages = len(self.pdf_document)
@@ -466,8 +473,13 @@ class SSVViewerApp:
             self.current_page -= 1
             self.render_pdf_page()
     
-    def display_word(self, data: bytes, filename: str):
-        """Display Word document"""
+    def display_word(self, data: bytes, filename: str, ext: str = '.docx'):
+        """Display Word document or ODT"""
+        # Handle ODT files
+        if ext == '.odt':
+            self.display_odt(data, filename)
+            return
+            
         if not DOCX_AVAILABLE:
             self.show_library_missing("python-docx", "Word viewing", "pip install python-docx")
             return
@@ -481,10 +493,10 @@ class SSVViewerApp:
                 font=("Arial", 11),
                 bg="#0f3460",
                 fg="#ffffff",
-                padx=20,
-                pady=20
+                padx=15,
+                pady=15
             )
-            text_widget.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
             
             for para in doc.paragraphs:
                 text_widget.insert(tk.END, para.text + "\n\n")
@@ -498,10 +510,51 @@ class SSVViewerApp:
                 bg="#16213e",
                 fg="#888888"
             )
-            watermark.pack(pady=10)
+            watermark.pack(pady=5)
             
         except Exception as e:
-            self.show_error(f"Failed to display Word document: {str(e)}")
+            # Try to display as text if docx parsing fails
+            self.display_text(data, filename)
+    
+    def display_odt(self, data: bytes, filename: str):
+        """Display ODT (OpenDocument Text) file"""
+        try:
+            import zipfile
+            from xml.etree import ElementTree as ET
+            
+            with zipfile.ZipFile(BytesIO(data)) as zf:
+                content = zf.read('content.xml')
+                root = ET.fromstring(content)
+                
+                # Extract text from ODT
+                text_content = []
+                for elem in root.iter():
+                    if elem.text:
+                        text_content.append(elem.text)
+                
+                text_widget = scrolledtext.ScrolledText(
+                    self.scrollable_frame,
+                    wrap=tk.WORD,
+                    font=("Arial", 11),
+                    bg="#0f3460",
+                    fg="#ffffff",
+                    padx=15,
+                    pady=15
+                )
+                text_widget.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+                text_widget.insert(tk.END, '\n'.join(text_content))
+                text_widget.config(state=tk.DISABLED)
+                
+                watermark = tk.Label(
+                    self.scrollable_frame,
+                    text=f"🔒 {filename} - View Only Mode",
+                    font=("Arial", 10),
+                    bg="#16213e",
+                    fg="#888888"
+                )
+                watermark.pack(pady=5)
+        except Exception as e:
+            self.show_error(f"Failed to display ODT: {str(e)}")
     
     def display_excel(self, data: bytes, filename: str):
         """Display Excel spreadsheet"""
@@ -603,13 +656,13 @@ class SSVViewerApp:
             text_widget = scrolledtext.ScrolledText(
                 self.scrollable_frame,
                 wrap=tk.WORD,
-                font=("Consolas", 10),
+                font=("Consolas", 11),
                 bg="#0f3460",
                 fg="#ffffff",
-                padx=10,
-                pady=10
+                padx=15,
+                pady=15
             )
-            text_widget.pack(fill=tk.BOTH, expand=True, padx=20, pady=20)
+            text_widget.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
             text_widget.insert(1.0, text_content)
             text_widget.config(state=tk.DISABLED)
             
@@ -620,7 +673,7 @@ class SSVViewerApp:
                 bg="#16213e",
                 fg="#888888"
             )
-            watermark.pack(pady=10)
+            watermark.pack(pady=5)
             
         except Exception as e:
             self.show_error(f"Failed to display text: {str(e)}")
