@@ -4,11 +4,14 @@ FROM node:18-alpine AS builder
 # Set working directory
 WORKDIR /app
 
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
 # Copy package files
-COPY package*.json ./
+COPY package*.json pnpm-lock.yaml* ./
 
 # Install dependencies
-RUN npm install
+RUN pnpm install
 
 # Copy source code
 COPY . .
@@ -18,7 +21,7 @@ ARG VITE_API_URL=http://localhost/api
 ENV VITE_API_URL=$VITE_API_URL
 
 # Build the application
-RUN npm run build
+RUN pnpm run build
 
 # Production stage - Serve with nginx
 FROM nginx:alpine

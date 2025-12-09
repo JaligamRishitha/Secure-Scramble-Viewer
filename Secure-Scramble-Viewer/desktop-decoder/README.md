@@ -71,22 +71,37 @@ sudo ./install_viewer.sh
 - PowerPoint: All slides
 - Text: Syntax highlighting
 
-## 🔐 Secret Key Setup
+## 🔐 Secret Key Setup (REQUIRED)
 
-The viewer needs the same secret key as your backend.
+⚠️ **IMPORTANT:** The viewer needs the same SECRET_KEY as your backend to decrypt files!
+
+**Get your SECRET_KEY from:**
+- Backend `.env` file: `SECRET_KEY=XsPnogOqsLaGxNGW9ZfeL/gnuGQoW7UzluhwAWyXK4A=`
+- Or Docker `.env` file in the project root
 
 **Windows:**
 ```cmd
 mkdir %USERPROFILE%\.ssv_decoder
-echo YOUR_SECRET_KEY > %USERPROFILE%\.ssv_decoder\config.txt
+echo XsPnogOqsLaGxNGW9ZfeL/gnuGQoW7UzluhwAWyXK4A= > %USERPROFILE%\.ssv_decoder\config.txt
 ```
 
 **macOS / Linux:**
 ```bash
 mkdir -p ~/.ssv_decoder
-echo "YOUR_SECRET_KEY" > ~/.ssv_decoder/config.txt
+echo "XsPnogOqsLaGxNGW9ZfeL/gnuGQoW7UzluhwAWyXK4A=" > ~/.ssv_decoder/config.txt
 chmod 600 ~/.ssv_decoder/config.txt
 ```
+
+**Verify configuration:**
+```bash
+# Windows
+type    
+
+# macOS/Linux
+cat ~/.ssv_decoder/config.txt
+```
+
+The key should match exactly with your backend SECRET_KEY!
 
 ## 📁 File Locations
 

@@ -34,7 +34,7 @@ function App() {
 
   useEffect(() => { if (user) loadFiles() }, [user])
   useEffect(() => { localStorage.setItem('apiKeys', JSON.stringify(apiKeys)) }, [apiKeys])
-  useEffect(() => { 
+  useEffect(() => {
     if (user) localStorage.setItem('ssvUser', JSON.stringify(user))
     else localStorage.removeItem('ssvUser')
   }, [user])
@@ -87,12 +87,12 @@ function App() {
       if (!response.ok) throw new Error('Decode failed')
       const blob = await response.blob()
       const url = window.URL.createObjectURL(blob)
-      const ext = filename.split('.').pop().toLowerCase()
+      const ext = filename?.split('.').pop()?.toLowerCase() || ''
       let type = 'other'
       if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) type = 'image'
       else if (ext === 'pdf') type = 'pdf'
       else if (['mp4', 'webm', 'ogg'].includes(ext)) type = 'video'
-      setPreview({ show: true, url, type, name: filename })
+      setPreview({ show: true, url, type, name: filename || 'Unknown' })
     } catch (error) {
       showMessage('error', 'Failed to decode file')
     }
@@ -154,7 +154,8 @@ function App() {
   const formatDate = (iso) => new Date(iso).toLocaleDateString()
   const formatSize = (bytes) => bytes < 1024 ? bytes + ' B' : bytes < 1048576 ? (bytes / 1024).toFixed(1) + ' KB' : (bytes / 1048576).toFixed(1) + ' MB'
   const getFileIcon = (name) => {
-    const ext = name.split('.').pop().toLowerCase()
+    if (!name) return '📁'
+    const ext = name.split('.').pop()?.toLowerCase() || ''
     if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext)) return '🖼️'
     if (ext === 'pdf') return '📄'
     if (['doc', 'docx'].includes(ext)) return '📝'
@@ -261,20 +262,20 @@ function App() {
                     </thead>
                     <tbody>
                       {files.map(file => (
-                        <tr key={file.id}>
+                        <tr key={file.file_id}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                              <div className="file-row-icon">{getFileIcon(file.original_filename)}</div>
-                              <span>{file.original_filename}</span>
+                              <div className="file-row-icon">{getFileIcon(file.filename)}</div>
+                              <span>{file.filename}</span>
                             </div>
                           </td>
-                          <td style={{ color: 'var(--text-muted)' }}>{formatSize(file.file_size)}</td>
+                          <td style={{ color: 'var(--text-muted)' }}>{formatSize(file.size)}</td>
                           <td style={{ color: 'var(--text-muted)' }}>{formatDate(file.upload_date)}</td>
                           <td>
                             <div className="file-actions">
-                              <button className="btn-icon" title="Preview" onClick={() => handleDecode(file.id, file.original_filename)}>👁️</button>
-                              <button className="btn-icon" title="Download .ssv" onClick={() => handleDownload(file.id, file.original_filename)}>⬇️</button>
-                              <button className="btn-icon danger" title="Delete" onClick={() => handleDelete(file.id)}>🗑️</button>
+                              <button className="btn-icon" title="Preview" onClick={() => handleDecode(file.file_id, file.filename)}>👁️</button>
+                              <button className="btn-icon" title="Download .ssv" onClick={() => handleDownload(file.file_id, file.filename)}>⬇️</button>
+                              <button className="btn-icon danger" title="Delete" onClick={() => handleDelete(file.file_id)}>🗑️</button>
                             </div>
                           </td>
                         </tr>
@@ -288,7 +289,7 @@ function App() {
             <div className="side-panel">
               <div className="panel-card">
                 <h2 className="panel-title">⬆️ Upload File</h2>
-                <div 
+                <div
                   className="upload-zone"
                   onClick={() => document.getElementById('file-input')?.click()}
                   onDragOver={(e) => { e.preventDefault(); e.currentTarget.classList.add('dragging') }}
@@ -329,7 +330,7 @@ function App() {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Total Size</span>
-                    <span style={{ fontWeight: 600 }}>{formatSize(files.reduce((acc, f) => acc + f.file_size, 0))}</span>
+                    <span style={{ fontWeight: 600 }}>{formatSize(files.reduce((acc, f) => acc + (f.size || 0), 0))}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', borderRadius: '10px' }}>
                     <span style={{ color: 'var(--text-muted)' }}>Encryption</span>
@@ -641,7 +642,7 @@ function App() {
             </div>
             <h1>Protect Your Files with <span>Unbreakable</span> Security</h1>
             <p className="hero-description">
-              Transform any file into an encrypted .ssv format that's impossible to open without our secure viewer. 
+              Transform any file into an encrypted .ssv format that's impossible to open without our secure viewer.
               AES-256 encryption ensures your sensitive data stays private.
             </p>
             <div className="hero-buttons">

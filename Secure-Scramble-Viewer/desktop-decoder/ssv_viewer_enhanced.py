@@ -72,6 +72,8 @@ class SSVDecoder:
     
     def parse_ssv_file(self, ssv_data: bytes) -> tuple:
         """Parse .ssv file and return (decrypted_data, original_filename)"""
+        print(f"[DEBUG] Total SSV size: {len(ssv_data)}")
+        
         version = ssv_data[0:4]
         salt = ssv_data[4:20]
         iv = ssv_data[20:36]
@@ -79,11 +81,31 @@ class SSVDecoder:
         fn_iv = ssv_data[52:68]
         filename_length = int.from_bytes(ssv_data[68:72], byteorder='big')
         
+        print(f"[DEBUG] Version: {version.hex()}")
+        print(f"[DEBUG] Filename length: {filename_length}")
+        
         encrypted_filename = ssv_data[72:72+filename_length]
         encrypted_data = ssv_data[72+filename_length:]
         
-        original_filename = self.decrypt_file(encrypted_filename, fn_salt, fn_iv).decode('utf-8')
-        original_data = self.decrypt_file(encrypted_data, salt, iv)
+        print(f"[DEBUG] Encrypted filename size: {len(encrypted_filename)} (multiple of 16: {len(encrypted_filename) % 16 == 0})")
+        print(f"[DEBUG] Encrypted data size: {len(encrypted_data)} (multiple of 16: {len(encrypted_data) % 16 == 0})")
+        
+        print(f"[DEBUG] Decrypting filename...")
+        try:
+            original_filename = self.decrypt_file(encrypted_filename, fn_salt, fn_iv).decode('utf-8')
+            print(f"[DEBUG] ✓ Filename decrypted: {original_filename}")
+        except Exception as e:
+            print(f"[DEBUG] ✗ Filename decryption failed: {e}")
+            raise
+        
+        print(f"[DEBUG] Decrypting file data...")
+        try:
+            original_data = self.decrypt_file(encrypted_data, salt, iv)
+            print(f"[DEBUG] ✓ Data decrypted: {len(original_data)} bytes")
+        except Exception as e:
+            print(f"[DEBUG] ✗ Data decryption failed: {e}")
+            print(f"[DEBUG] Last 32 bytes of encrypted data: {encrypted_data[-32:].hex()}")
+            raise
         
         return original_data, original_filename
 
@@ -119,10 +141,22 @@ class SSVViewerApp:
         config_file = Path.home() / ".ssv_decoder" / "config.txt"
         if config_file.exists():
             try:
-                return config_file.read_text().strip()
+                key = config_file.read_text().strip()
+                if key and key != "CHANGE-THIS-TO-A-SECURE-RANDOM-KEY-AT-LEAST-32-CHARACTERS-LONG":
+                    return key
             except:
                 pass
-        return "CHANGE-THIS-TO-A-SECURE-RANDOM-KEY-AT-LEAST-32-CHARACTERS-LONG"
+        
+        # Show configuration dialog
+        messagebox.showwarning(
+            "Configuration Required",
+            f"Secret key not configured!\n\n"
+            f"Please create the config file:\n{config_file}\n\n"
+            f"Add your SECRET_KEY from the backend .env file.\n\n"
+            f"Example:\nXsPnogOqsLaGxNGW9ZfeL/gnuGQoW7UzluhwAWyXK4A=\n\n"
+            f"The viewer will use a default key, but decryption may fail."
+        )
+        return "XsPnogOqsLaGxNGW9ZfeL/gnuGQoW7UzluhwAWyXK4A="
     
     def setup_ui(self):
         """Setup the viewer UI"""
@@ -307,6 +341,11 @@ class SSVViewerApp:
             with open(file_path, 'rb') as f:
                 ssv_data = f.read()
             
+            # Debug info
+            print(f"[DEBUG] File size: {len(ssv_data)} bytes")
+            print(f"[DEBUG] Secret key (first 20 chars): {self.secret_key[:20]}...")
+            print(f"[DEBUG] Key hash: {hashlib.sha256(self.secret_key.encode()).hexdigest()[:40]}...")
+            
             original_data, original_filename = self.decoder.parse_ssv_file(ssv_data)
             
             self.current_data = original_data
@@ -320,10 +359,20 @@ class SSVViewerApp:
             self.display_content(original_data, original_filename)
             
         except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            print(f"[ERROR] {error_details}")
+            
             messagebox.showerror(
                 "Decryption Error",
-                f"Failed to decrypt file:\n\n{str(e)}\n\nPossible causes:\n"
-                f"1. Wrong secret key\n2. Corrupted file\n3. File encrypted with different key"
+                f"Failed to decrypt file:\n\n{str(e)}\n\n"
+                f"Debug info:\n"
+                f"File: {file_path}\n"
+                f"Size: {len(ssv_data) if 'ssv_data' in locals() else 'unknown'} bytes\n"
+                f"Key configured: {self.secret_key[:20]}...\n\n"
+                f"Possible causes:\n"
+                f"1. Wrong secret key\n2. Corrupted file\n3. File encrypted with different key\n\n"
+                f"Check console for detailed error."
             )
             self.show_welcome()
     
